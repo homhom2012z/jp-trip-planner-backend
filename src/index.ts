@@ -70,10 +70,15 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Start Server
-app.listen(CONFIG.PORT, async () => {
-  console.log(`[Server] Running on http://localhost:${CONFIG.PORT}`);
+// Export the app for Vercel (serverless) or testing
+export default app;
 
-  // Verify DB connection on start
-  await checkSupabaseConnection();
-});
+// Start Server locally if run directly
+if (require.main === module) {
+  app.listen(CONFIG.PORT, async () => {
+    console.log(`[Server] Running on http://localhost:${CONFIG.PORT}`);
+
+    // Verify DB connection on start
+    await checkSupabaseConnection();
+  });
+}
