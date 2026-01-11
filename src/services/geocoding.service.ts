@@ -28,7 +28,10 @@ export class GeocodingService {
         }
         return result;
       } else {
-        console.warn(`Place search failed for "${query}": ${res.data.status}`);
+        console.warn(
+          `Place search failed for "${query}": ${res.data.status}`,
+          res.data.error_message ? `Reason: ${res.data.error_message}` : ""
+        );
       }
     } catch (e) {
       console.error("Place search error", e);
