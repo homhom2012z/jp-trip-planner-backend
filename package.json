@@ -18,7 +18,7 @@
     "express-rate-limit": "^8.2.1",
     "googleapis": "^144.0.0",
     "helmet": "^8.1.0",
-    "nanoid": "^5.1.6",
+    "nanoid": "^3.3.7",
     "zod": "^4.3.5"
   },
   "devDependencies": {
