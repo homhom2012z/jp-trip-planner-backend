@@ -143,7 +143,18 @@ export async function syncSheetToDb(ownerId: string) {
     });
 
   if (itemsToFetch.length > 0) {
-    console.log(`[Sync] Enriching ${itemsToFetch.length} locations...`);
+    // VERCEL FREE TIER FIX:
+    // Limit to 5 items per Sync request to prevent 10s timeout.
+    // User will need to click "Sync" multiple times if they have many new locations.
+    const BATCH_SIZE = 5;
+    if (itemsToFetch.length > BATCH_SIZE) {
+      console.log(
+        `[Sync] Too many items (${itemsToFetch.length}), processing first ${BATCH_SIZE} only...`
+      );
+      itemsToFetch = itemsToFetch.slice(0, BATCH_SIZE);
+    } else {
+      console.log(`[Sync] Enriching ${itemsToFetch.length} locations...`);
+    }
 
     // Batch in chunks if necessary, but Maps API is robust.
     const results = await Promise.all(
