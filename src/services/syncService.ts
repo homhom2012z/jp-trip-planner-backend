@@ -146,9 +146,8 @@ export async function syncSheetToDb(ownerId: string) {
   let remainingCount = 0;
   if (itemsToFetch.length > 0) {
     // VERCEL FREE TIER FIX:
-    // Limit to 5 items per Sync request to prevent 10s timeout.
-    // User will need to click "Sync" multiple times if they have many new locations.
-    const BATCH_SIZE = 5;
+    // Limit to 3 items per Sync request to prevent 10s timeout (Sequential is slower).
+    const BATCH_SIZE = 3;
     if (itemsToFetch.length > BATCH_SIZE) {
       remainingCount = itemsToFetch.length - BATCH_SIZE;
       console.log(
@@ -160,8 +159,16 @@ export async function syncSheetToDb(ownerId: string) {
     }
 
     // VERCEL FIX: Sequential processing to avoid Google Maps QPS Rate Limits
+    const startTime = Date.now();
 
     for (const { loc, i } of itemsToFetch) {
+      // Safety Check: If we are close to Vercel Timeout (e.g. > 6s elapsed), stop and save.
+      if (Date.now() - startTime > 6000) {
+        console.warn("[Sync] Timeout approaching, saving partial progress...");
+        remainingCount += itemsToFetch.length - updatedCount; // Adjust remaining
+        break;
+      }
+
       const query = `${loc.name}, ${loc.city}, Japan`;
       const data = await GeocodingService.fetchPlaceData(query);
 
