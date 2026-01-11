@@ -134,7 +134,7 @@ export async function syncSheetToDb(ownerId: string) {
   }[] = [];
 
   // Identify items needing fetch
-  const itemsToFetch = locations
+  let itemsToFetch = locations
     .map((loc, i) => ({ loc, i }))
     .filter(({ loc, i }) => {
       const rawRow = rows[i + 1];
