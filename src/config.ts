@@ -17,7 +17,6 @@ export const CONFIG = {
     CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || "",
     REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI || "",
     MAPS_KEY:
-      process.env.GOOGLE_MAPS_KEY ||
       process.env.GOOGLE_MAPS_API_KEY ||
       process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
       "",
