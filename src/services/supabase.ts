@@ -7,16 +7,16 @@ if (!CONFIG.SUPABASE.URL || !CONFIG.SUPABASE.SERVICE_KEY) {
 
 // Service Role Client - Has FULL ACCESS to the DB. Use with caution.
 // We need this to read encrypted tokens and manage permissions that RLS might hide.
-export const supabaseAdmin = createClient(
-  CONFIG.SUPABASE.URL,
-  CONFIG.SUPABASE.SERVICE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+// Fallback to placeholders to prevent cold-start crashes if env vars are missing.
+const sbUrl = CONFIG.SUPABASE.URL || "https://placeholder.supabase.co";
+const sbKey = CONFIG.SUPABASE.SERVICE_KEY || "placeholder";
+
+export const supabaseAdmin = createClient(sbUrl, sbKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
 
 // Helper to check connection/health
 export async function checkSupabaseConnection() {

@@ -66,6 +66,15 @@ app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Root Route (for easy verification)
+app.get("/", (req: Request, res: Response) => {
+  res.json({
+    service: "JP Trip Planner API",
+    status: "running",
+    docs: "/health",
+  });
+});
+
 // Export the app for Vercel (serverless) or testing
 export default app;
 
