@@ -26,12 +26,10 @@ const validateAccess = async (req: any, res: any, next: any) => {
     );
 
     if (!hasAccess) {
-      return res
-        .status(403)
-        .json({
-          error:
-            "Access Denied: You do not have permission to view/edit this trip.",
-        });
+      return res.status(403).json({
+        error:
+          "Access Denied: You do not have permission to view/edit this trip.",
+      });
     }
 
     // Attach targetOwnerId to req for convenience
@@ -61,8 +59,15 @@ router.get("/", validateAccess, async (req: any, res) => {
 // POST /sync - Force Sync from Google Sheet
 router.post("/sync", validateAccess, async (req: any, res) => {
   try {
-    const locations = await syncSheetToDb(req.targetOwnerId);
-    res.json({ success: true, count: locations.length, locations });
+    const { locations, remainingCount } = await syncSheetToDb(
+      req.targetOwnerId
+    );
+    res.json({
+      success: true,
+      count: locations.length,
+      remaining: remainingCount,
+      locations,
+    });
   } catch (error: any) {
     console.error("Sync Error:", error);
     res.status(500).json({ error: error.message });

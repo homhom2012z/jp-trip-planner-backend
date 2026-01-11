@@ -67,7 +67,7 @@ export async function syncSheetToDb(ownerId: string) {
     "Locations!A:Z"
   );
 
-  if (!rows || rows.length === 0) return [];
+  if (!rows || rows.length === 0) return { locations: [], remainingCount: 0 };
 
   // 3.1 Dynamic Header Mapping
   const headerRow = rows[0].map((h: string) => h.toLowerCase().trim());
@@ -142,14 +142,16 @@ export async function syncSheetToDb(ownerId: string) {
       return loc.name !== "Unknown" && (!loc.lat || !loc.lng || !hasPhotoRef);
     });
 
+  let remainingCount = 0;
   if (itemsToFetch.length > 0) {
     // VERCEL FREE TIER FIX:
     // Limit to 5 items per Sync request to prevent 10s timeout.
     // User will need to click "Sync" multiple times if they have many new locations.
     const BATCH_SIZE = 5;
     if (itemsToFetch.length > BATCH_SIZE) {
+      remainingCount = itemsToFetch.length - BATCH_SIZE;
       console.log(
-        `[Sync] Too many items (${itemsToFetch.length}), processing first ${BATCH_SIZE} only...`
+        `[Sync] Too many items (${itemsToFetch.length}), processing first ${BATCH_SIZE} only... (${remainingCount} remaining)`
       );
       itemsToFetch = itemsToFetch.slice(0, BATCH_SIZE);
     } else {
@@ -243,7 +245,30 @@ export async function syncSheetToDb(ownerId: string) {
 
   if (upsertError) throw upsertError;
 
-  return locations;
+  // Calculate remaining count
+  // If we sliced itemsToFetch, remaining is (total - BATCH_SIZE)
+  // If we didn't slice, remaining is 0 (or we could track total missing)
+  // We can't know accurate 'total missing' unless we track it before slicing.
+  // Actually, we sliced 'itemsToFetch' variable.
+  // Let's assume we re-calculate or capture the length before slicing.
+  // The 'itemsToFetch' variable was modified in place in previous step.
+  // Wait, I need to capture original length.
+
+  // NOTE: In the previous step I modified 'itemsToFetch' directly.
+  // To implement this correctly I should have captured 'totalMissing' before slicing.
+  // I will fix that logic here by reading the array *after* the previous block?
+  // No, I need to know how many were *skipped*.
+
+  // Since I can't see the exact lines of the previous block easily without reading again,
+  // I will rely on the fact that I just modified it.
+  // Actually, I should probably rewrite the block I just touched to capture `remainingCount`.
+
+  // Let's rewrite the 'Identify items' block to be cleaner and return the count.
+  // Wait, I can just return 'locations' as before, but I need to change signature or return object.
+  // The function currently returns 'Location[]'.
+  // I should change it to return { locations: Location[], remainingCount: number }.
+
+  return { locations, remainingCount };
 }
 
 // Read Strategy: Read DB (Fast)
