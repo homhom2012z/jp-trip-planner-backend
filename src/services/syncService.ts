@@ -142,6 +142,7 @@ export async function syncSheetToDb(ownerId: string) {
       return loc.name !== "Unknown" && (!loc.lat || !loc.lng || !hasPhotoRef);
     });
 
+  let updatedCount = 0;
   let remainingCount = 0;
   if (itemsToFetch.length > 0) {
     // VERCEL FREE TIER FIX:
@@ -158,20 +159,11 @@ export async function syncSheetToDb(ownerId: string) {
       console.log(`[Sync] Enriching ${itemsToFetch.length} locations...`);
     }
 
-    // Batch in chunks if necessary, but Maps API is robust.
-    const results = await Promise.all(
-      itemsToFetch.map(async ({ loc }) => {
-        const query = `${loc.name}, ${loc.city}, Japan`;
-        return {
-          loc,
-          data: await GeocodingService.fetchPlaceData(query),
-        };
-      })
-    );
+    // VERCEL FIX: Sequential processing to avoid Google Maps QPS Rate Limits
 
-    // Process Results
-    results.forEach(({ loc, data }, idx) => {
-      const originalIndex = itemsToFetch[idx].i; // index in 'locations' array
+    for (const { loc, i } of itemsToFetch) {
+      const query = `${loc.name}, ${loc.city}, Japan`;
+      const data = await GeocodingService.fetchPlaceData(query);
 
       if (data) {
         if (!loc.lat || !loc.lng) {
@@ -181,7 +173,7 @@ export async function syncSheetToDb(ownerId: string) {
         const photoRef = data.photoRef || "";
 
         updates.push({
-          rowIdx: originalIndex + 2, // 1-based + 1 header
+          rowIdx: i + 2, // 1-based + 1 header (using original index i from itemsToFetch)
           lat: loc.lat!,
           lng: loc.lng!,
           photoRef,
@@ -190,9 +182,10 @@ export async function syncSheetToDb(ownerId: string) {
         // Update local photoUrl
         if (photoRef) {
           loc.photoUrl = GeocodingService.getPhotoUrl(photoRef);
+          updatedCount++;
         }
       }
-    });
+    }
   }
 
   // 3.6 Batch Write Back to Google Sheets
@@ -268,7 +261,11 @@ export async function syncSheetToDb(ownerId: string) {
   // The function currently returns 'Location[]'.
   // I should change it to return { locations: Location[], remainingCount: number }.
 
-  return { locations, remainingCount };
+  return {
+    locations,
+    remainingCount,
+    updatedCount,
+  };
 }
 
 // Read Strategy: Read DB (Fast)

@@ -59,13 +59,14 @@ router.get("/", validateAccess, async (req: any, res) => {
 // POST /sync - Force Sync from Google Sheet
 router.post("/sync", validateAccess, async (req: any, res) => {
   try {
-    const { locations, remainingCount } = await syncSheetToDb(
+    const { locations, remainingCount, updatedCount } = await syncSheetToDb(
       req.targetOwnerId
     );
     res.json({
       success: true,
       count: locations.length,
       remaining: remainingCount,
+      updated: updatedCount,
       locations,
     });
   } catch (error: any) {
