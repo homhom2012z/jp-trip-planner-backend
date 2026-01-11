@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -34,7 +34,10 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: (origin, callback) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void
+    ) => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       if (allowedOrigins.indexOf(origin) === -1) {
@@ -57,16 +60,9 @@ app.use("/api/locations", locationsRoutes);
 app.use("/api/itinerary", itineraryRoutes);
 app.use("/api/share", shareRoutes);
 app.use("/api/collaborators", collaboratorRoutes);
-// locationsRoutes handles /update and /disconnect.
-// Let's mount locationsRoutes under /api/manage or keep them flat.
-// Let's use /api/manage for clarity? Or just append to /api.
-// Let's use /api/locations to keep it consistent with the resource.
-// sheetsRoutes is `router.get("/", ...)` and `router.post("/sync", ...)`
-// locationsRoutes is `router.post("/update", ...)` and `router.post("/disconnect", ...)`
-// So mounting both on `/api/locations` works perfectly.
 
 // Health Check
-app.get("/health", (req, res) => {
+app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
