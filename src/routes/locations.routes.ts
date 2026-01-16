@@ -260,7 +260,7 @@ router.post("/batch-add", validateAccess, async (req: any, res) => {
         if (data) {
           const row = [
             data.name,
-            data.city || "Japan",
+            (data as any).city || "Japan",
             data.type || "",
             data.priceLevel || "",
             data.summary || "",
