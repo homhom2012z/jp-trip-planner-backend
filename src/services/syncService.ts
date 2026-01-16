@@ -131,15 +131,39 @@ export async function syncSheetToDb(ownerId: string) {
     lat: number;
     lng: number;
     photoRef: string;
+    type?: string;
+    price?: string;
+    desc?: string;
+    url?: string;
   }[] = [];
 
   // Identify items needing fetch
+  // We fetch if ANY key field is missing (Lat/Lng, Photo, or Metadata like Price/Type)
   let itemsToFetch = locations
     .map((loc, i) => ({ loc, i }))
     .filter(({ loc, i }) => {
       const rawRow = rows[i + 1];
       const hasPhotoRef = rawRow && getVal(rawRow, colMap.photo);
-      return loc.name !== "Unknown" && (!loc.lat || !loc.lng || !hasPhotoRef);
+
+      // Check for missing strict fields
+      const missingCoords = !loc.lat || !loc.lng;
+      const missingPhoto = !hasPhotoRef;
+
+      // Check for missing metadata (checks against default values)
+      const missingType = !loc.type || loc.type === "Spot";
+      const missingPrice = !loc.priceJpy || loc.priceJpy === "-";
+      const missingDesc = !loc.description;
+      const missingUrl = !loc.googleMapsUrl || loc.googleMapsUrl === "#";
+
+      return (
+        loc.name !== "Unknown" &&
+        (missingCoords ||
+          missingPhoto ||
+          missingType ||
+          missingPrice ||
+          missingDesc ||
+          missingUrl)
+      );
     });
 
   let updatedCount = 0;
@@ -173,24 +197,49 @@ export async function syncSheetToDb(ownerId: string) {
       const data = await GeocodingService.fetchPlaceData(query);
 
       if (data) {
+        // Update Local Object (so cache is correct immediately)
         if (!loc.lat || !loc.lng) {
           loc.lat = data.lat;
           loc.lng = data.lng;
         }
-        const photoRef = data.photoRef || "";
+        if (
+          (!loc.googleMapsUrl || loc.googleMapsUrl === "#") &&
+          data.googleMapsUrl
+        ) {
+          loc.googleMapsUrl = data.googleMapsUrl;
+        }
+        if (!loc.description && data.summary) {
+          loc.description = data.summary;
+        }
+        if ((!loc.priceJpy || loc.priceJpy === "-") && data.priceLevel) {
+          loc.priceJpy = data.priceLevel;
+        }
+        if ((!loc.type || loc.type === "Spot") && data.type) {
+          loc.type = data.type;
+        }
 
+        const photoRef = data.photoRef || "";
+        if (
+          photoRef &&
+          (!loc.photoUrl || loc.photoUrl.includes("maps.googleapis.com"))
+        ) {
+          // Only update if we have a new ref or current is auto-generated
+          loc.photoUrl = GeocodingService.getPhotoUrl(photoRef);
+        }
+
+        // Prepare Sheet Update
         updates.push({
           rowIdx: i + 2, // 1-based + 1 header (using original index i from itemsToFetch)
-          lat: loc.lat!,
-          lng: loc.lng!,
+          lat: data.lat,
+          lng: data.lng,
           photoRef,
+          type: data.type,
+          price: data.priceLevel,
+          desc: data.summary,
+          url: data.googleMapsUrl,
         });
 
-        // Update local photoUrl
-        if (photoRef) {
-          loc.photoUrl = GeocodingService.getPhotoUrl(photoRef);
-          updatedCount++;
-        }
+        updatedCount++;
       }
     }
   }
@@ -214,11 +263,34 @@ export async function syncSheetToDb(ownerId: string) {
             range: `Locations!${getColLetter(colMap.lng)}${u.rowIdx}`,
             values: [[u.lng]],
           });
-        if (colMap.photo !== -1)
+        if (colMap.photo !== -1 && u.photoRef)
           changes.push({
             range: `Locations!${getColLetter(colMap.photo)}${u.rowIdx}`,
             values: [[u.photoRef]],
           });
+
+        // New Fields
+        if (colMap.type !== -1 && u.type)
+          changes.push({
+            range: `Locations!${getColLetter(colMap.type)}${u.rowIdx}`,
+            values: [[u.type]],
+          });
+        if (colMap.price !== -1 && u.price)
+          changes.push({
+            range: `Locations!${getColLetter(colMap.price)}${u.rowIdx}`,
+            values: [[u.price]],
+          });
+        if (colMap.desc !== -1 && u.desc)
+          changes.push({
+            range: `Locations!${getColLetter(colMap.desc)}${u.rowIdx}`,
+            values: [[u.desc]],
+          });
+        if (colMap.url !== -1 && u.url)
+          changes.push({
+            range: `Locations!${getColLetter(colMap.url)}${u.rowIdx}`,
+            values: [[u.url]],
+          });
+
         return changes;
       })
       .flat();
