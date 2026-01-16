@@ -109,11 +109,18 @@ router.post("/preview", async (req, res) => {
     // No auth needed for preview if we just use our API key (but strict rate limit?)
     // Better to require auth to prevent abuse, but for now open is easier for dev.
     // Let's rely on global rate limiter.
-    const { name, city } = req.body;
-    if (!name || !city) throw new Error("Name and city required");
+    const { name, city, url } = req.body;
 
-    const query = `${name}, ${city}, Japan`;
-    const data = await GeocodingService.fetchPlaceData(query);
+    let data = null;
+
+    if (url) {
+      data = await GeocodingService.fetchPlaceFromUrl(url);
+    } else if (name && city) {
+      const query = `${name}, ${city}, Japan`;
+      data = await GeocodingService.fetchPlaceData(query);
+    } else {
+      throw new Error("Either URL or Name+City required");
+    }
 
     // Enrich with photo URL for frontend display
     let photoUrl = "";
