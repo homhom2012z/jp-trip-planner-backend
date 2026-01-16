@@ -1,12 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
-import { CONFIG } from "../config";
+import { supabaseAdmin as supabase } from "./supabase";
 import { v4 as uuidv4 } from "uuid";
 import { nanoid } from "nanoid";
-
-const supabase = createClient(
-  CONFIG.SUPABASE.URL,
-  CONFIG.SUPABASE.SERVICE_KEY || CONFIG.SUPABASE.ANON_KEY
-);
 
 export class ShareService {
   /**
