@@ -213,4 +213,90 @@ router.post("/add", validateAccess, async (req: any, res) => {
   }
 });
 
+// Batch Add Locations
+router.post("/batch-add", validateAccess, async (req: any, res) => {
+  try {
+    const { urls } = req.body; // array of strings
+    if (!urls || !Array.isArray(urls) || urls.length === 0) {
+      return res.status(400).json({ error: "No URLs provided" });
+    }
+
+    if (urls.length > 20) {
+      return res.status(400).json({ error: "Max 20 links per batch" });
+    }
+
+    // Auth
+    const profile = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", req.targetOwnerId)
+      .single();
+
+    if (!profile.data || !profile.data.google_refresh_token) {
+      throw new Error("User not connected to Google Sheets");
+    }
+
+    const { decrypt } = require("../utils/encryption");
+    const refreshToken = decrypt(profile.data.google_refresh_token);
+    const auth = SheetsService.getAuthClient(refreshToken);
+    const { syncSheetToDb } = require("../services/syncService");
+
+    const rowsToAdd: any[] = [];
+    const errors: any[] = [];
+
+    // Process sequentially to be safe (or parallel with limit?)
+    // Parallel 5 at a time is better for speed vs rate limit.
+    // For now, simple sequential to avoid complexity and Vercel limits?
+    // Vercel limit is 10s. 20 links * 500ms = 10s. Might timeout.
+    // Let's rely on internal GeocodingService.fetchPlaceFromUrl
+
+    // We will process them and ignore failures (just log them)
+    for (const url of urls) {
+      try {
+        if (!url || !url.trim()) continue;
+        const cleanUrl = url.trim();
+        const data = await GeocodingService.fetchPlaceFromUrl(cleanUrl);
+
+        if (data) {
+          const row = [
+            data.name,
+            data.city || "Japan",
+            data.type || "",
+            data.priceLevel || "",
+            data.summary || "",
+            data.googleMapsUrl || cleanUrl,
+            data.lat || "",
+            data.lng || "",
+            data.photoRef || "",
+          ];
+          rowsToAdd.push(row);
+        }
+      } catch (e: any) {
+        console.error(`Failed to fetch ${url}`, e.message);
+        errors.push({ url, error: e.message });
+      }
+    }
+
+    if (rowsToAdd.length > 0) {
+      await SheetsService.appendRow(
+        auth,
+        profile.data.spreadsheet_id,
+        "Locations!A1",
+        rowsToAdd // appendRow can take multiple rows if we pass array of arrays?
+        // Wait, appendRow signature:
+        // static async appendRow(auth, spreadsheetId, range, values: any[][])
+        // Yes it takes a 2D array.
+      );
+
+      // Sync back to DB
+      await syncSheetToDb(req.targetOwnerId);
+    }
+
+    res.json({ success: true, added: rowsToAdd.length, errors });
+  } catch (e: any) {
+    console.error("Batch add failed", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
