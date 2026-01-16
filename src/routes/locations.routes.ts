@@ -104,6 +104,21 @@ router.post("/disconnect", validateAccess, async (req: any, res) => {
   }
 });
 
+// Delete Location
+router.post("/delete", validateAccess, async (req: any, res) => {
+  try {
+    const { locationId } = req.body;
+    if (!locationId) {
+      return res.status(400).json({ error: "Missing locationId" });
+    }
+    await deleteLocationInSheet(req.targetOwnerId, locationId);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("Delete failed", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // New Endpoint: Preview Location Data
 router.post("/preview", async (req, res) => {
   try {
