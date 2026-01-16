@@ -442,6 +442,73 @@ export async function updateLocationInSheet(
   return { success: true };
 }
 
+// Delete Location (Delete Row)
+export async function deleteLocationInSheet(
+  ownerId: string,
+  locationId: string
+) {
+  // 1. Get User Profile
+  const { data: profile, error } = await supabaseAdmin
+    .from("profiles")
+    .select("google_refresh_token, spreadsheet_id")
+    .eq("id", ownerId)
+    .single();
+
+  if (error || !profile?.spreadsheet_id || !profile?.google_refresh_token) {
+    throw new Error("User profile incomplete.");
+  }
+
+  // 2. Parse Row Index (loc-0 -> Row 2)
+  // Row 2 is index 1 for deletion (Requests are 0-indexed)
+  // loc-0 means index 0 in the "data" array (from slice(1)).
+  // So Row 2.
+  // 0-based deleteDimension index: Row 1 = 0, Row 2 = 1.
+  // So index = parseInt(id) + 1.
+  const idNum = parseInt(locationId.replace("loc-", ""));
+  if (isNaN(idNum)) throw new Error("Invalid Location ID");
+
+  const startIndex = idNum + 1; // e.g. loc-0 -> Row 2 -> Index 1
+  const endIndex = startIndex + 1; // Exclusive
+
+  // 3. Decrypt & Auth
+  const refreshToken = decrypt(profile.google_refresh_token);
+  const auth = SheetsService.getAuthClient(refreshToken);
+
+  // 4. Get Sheet ID (Grid ID)
+  const metadata = await SheetsService.getMetadata(
+    auth,
+    profile.spreadsheet_id
+  );
+  const sheet =
+    metadata.sheets?.find((s: any) => s.properties?.title === "Locations") ||
+    metadata.sheets?.[0]; // Default to first sheet if "Locations" not found (Legacy)
+
+  if (
+    !sheet ||
+    !sheet.properties ||
+    typeof sheet.properties.sheetId === "undefined" ||
+    sheet.properties.sheetId === null
+  ) {
+    throw new Error("Could not find sheet to delete from");
+  }
+
+  const sheetId: number = sheet.properties.sheetId;
+
+  // 5. Delete Row
+  await SheetsService.deleteRows(
+    auth,
+    profile.spreadsheet_id,
+    sheetId,
+    startIndex,
+    endIndex
+  );
+
+  // 6. Sync to update IDs and Cache
+  await syncSheetToDb(ownerId);
+
+  return { success: true };
+}
+
 // Disconnect Sheet
 export async function disconnectSheet(ownerId: string) {
   // 1. Clear profile spreadsheet_id

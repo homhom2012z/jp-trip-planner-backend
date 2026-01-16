@@ -4,6 +4,7 @@ import {
   disconnectSheet,
   getLocationsFromDb,
   syncSheetToDb,
+  deleteLocationInSheet,
 } from "../services/syncService";
 import { requireAuth } from "../middleware/auth.middleware";
 import { CollaboratorService } from "../services/collaboratorService";

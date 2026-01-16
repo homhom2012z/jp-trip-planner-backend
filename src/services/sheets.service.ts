@@ -157,4 +157,34 @@ export class SheetsService {
     });
     return response.data;
   }
+  /**
+   * Delete Rows
+   */
+  static async deleteRows(
+    auth: any,
+    spreadsheetId: string,
+    sheetId: number,
+    startIndex: number,
+    endIndex: number
+  ) {
+    const response = await sheets.spreadsheets.batchUpdate({
+      auth,
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId,
+                dimension: "ROWS",
+                startIndex,
+                endIndex,
+              },
+            },
+          },
+        ],
+      },
+    });
+    return response.data;
+  }
 }
