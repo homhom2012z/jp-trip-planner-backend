@@ -105,29 +105,23 @@ export class GeocodingService {
 
       if (isShort) {
         try {
-          console.log("Attempting HEAD expansion on:", finalUrl);
           const response = await axios.head(finalUrl, {
             validateStatus: (status) => status >= 200 && status < 400,
             maxRedirects: 5,
           });
           const responseUrl = response.request?.res?.responseUrl;
-          console.log("HEAD Response Status:", response.status);
-          console.log("HEAD Res URL:", responseUrl);
 
           if (responseUrl) {
             finalUrl = responseUrl;
           }
         } catch (e: any) {
-          console.warn("HEAD expansion note:", e.message);
+          console.warn("HEAD expansion failed, trying GET...", e.message);
           try {
-            console.log("Attempting GET expansion on:", finalUrl);
             // Fallback to GET
             const response = await axios.get(finalUrl, {
               validateStatus: (status) => status >= 200 && status < 400,
             });
             const responseUrl = response.request?.res?.responseUrl;
-            console.log("GET Response Status:", response.status);
-            console.log("GET Res URL:", responseUrl);
 
             finalUrl = responseUrl || finalUrl;
           } catch (ex) {
