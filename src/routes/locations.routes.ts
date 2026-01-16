@@ -146,7 +146,7 @@ router.post("/add", validateAccess, async (req: any, res) => {
       throw new Error("User not connected to Google Sheets");
     }
 
-    const { decrypt } = require("../services/authService"); // Lazy import or move helper
+    const { decrypt } = require("../utils/encryption");
     const refreshToken = decrypt(profile.data.google_refresh_token);
     const auth = SheetsService.getAuthClient(refreshToken);
 
