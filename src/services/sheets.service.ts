@@ -135,4 +135,26 @@ export class SheetsService {
     });
     return response.data;
   }
+
+  /**
+   * Append Row to Sheet
+   */
+  static async appendRow(
+    auth: any,
+    spreadsheetId: string,
+    range: string,
+    values: any[][]
+  ) {
+    const response = await sheets.spreadsheets.values.append({
+      auth,
+      spreadsheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: {
+        values,
+      },
+    });
+    return response.data;
+  }
 }
