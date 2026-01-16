@@ -10,6 +10,7 @@ export class GeocodingService {
    */
   static async fetchPlaceData(query: string): Promise<{
     name: string;
+    city: string; // Added city
     lat: number;
     lng: number;
     photoRef?: string;
@@ -36,9 +37,8 @@ export class GeocodingService {
       const placeId = place.place_id;
 
       // 2. Place Details to get rich info
-      // Fields: name, url, website, price_level, type, editorial_summary
-      // Added 'name' to fields
-      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,geometry,photos,url,website,price_level,types,editorial_summary&key=${CONFIG.GOOGLE.MAPS_KEY}`;
+      // Added 'address_components' to fields
+      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,geometry,photos,url,website,price_level,types,editorial_summary,address_components&key=${CONFIG.GOOGLE.MAPS_KEY}`;
 
       const detailsRes = await axios.get(detailsUrl);
       if (detailsRes.data.status !== "OK") {
@@ -46,6 +46,7 @@ export class GeocodingService {
         // Fallback to basic info from search result
         return {
           name: place.name,
+          city: "Japan", // Basic fallback
           lat: place.geometry.location.lat,
           lng: place.geometry.location.lng,
           photoRef: place.photos?.[0]?.photo_reference,
@@ -57,6 +58,7 @@ export class GeocodingService {
       // 3. Map Data
       const result = {
         name: d.name,
+        city: this.extractCity(d.address_components), // Extract city
         lat: d.geometry.location.lat,
         lng: d.geometry.location.lng,
         photoRef: d.photos?.[0]?.photo_reference,
@@ -79,6 +81,7 @@ export class GeocodingService {
    */
   static async fetchPlaceFromUrl(url: string): Promise<{
     name: string;
+    city: string;
     lat: number;
     lng: number;
     photoRef?: string;
@@ -175,6 +178,34 @@ export class GeocodingService {
   static getPhotoUrl(photoRef: string): string {
     if (!photoRef || !CONFIG.GOOGLE.MAPS_KEY) return "";
     return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${CONFIG.GOOGLE.MAPS_KEY}`;
+  }
+
+  static extractCity(components: any[]): string {
+    if (!components) return "Japan";
+
+    // 1. Locality (City) - e.g. Osaka, Kyoto
+    const locality = components.find((c) => c.types.includes("locality"));
+    if (locality) return locality.long_name;
+
+    // 2. Administrative Area Level 1 (Prefecture) - e.g. Tokyo (when special wards not grouped as locality)
+    // Note: For Tokyo 23 wards, locality is often missing, and Wards are sublocality_level_1.
+    // If we want "Tokyo", level_1 is good.
+    const admin1 = components.find((c) =>
+      c.types.includes("administrative_area_level_1")
+    );
+    const ward = components.find(
+      (c) => c.types.includes("ward") || c.types.includes("sublocality_level_1")
+    ); // Special ward
+
+    // If it's a ward in Tokyo, user might prefer "Tokyo" or the Ward name "Shibuya".
+    // "Tokyo" is safer for grouping.
+    if (admin1) {
+      // If it's Tokyo, and we have a ward, maybe "Tokyo"? or "Shibuya, Tokyo"?
+      // Simply returning admin1 (Prefecture) is a safe bet for "City" column generally.
+      return admin1.long_name;
+    }
+
+    return "Japan";
   }
 
   // Helpers
