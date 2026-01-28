@@ -24,7 +24,7 @@ export class GeocodingService {
     try {
       // 1. Text Search to get Place ID
       const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
-        query
+        query,
       )}&key=${CONFIG.GOOGLE.MAPS_KEY}`;
 
       const res = await axios.get(searchUrl);
@@ -46,7 +46,7 @@ export class GeocodingService {
         // Fallback to basic info from search result
         return {
           name: place.name,
-          city: "Japan", // Basic fallback
+          city: this.parseCityFromAddress(place.formatted_address), // Use helper fallback
           lat: place.geometry.location.lat,
           lng: place.geometry.location.lng,
           photoRef: place.photos?.[0]?.photo_reference,
@@ -161,7 +161,7 @@ export class GeocodingService {
       const coordsMatch = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
       if (coordsMatch) {
         console.warn(
-          "Found coordinates but no name. Text search might be ambiguous."
+          "Found coordinates but no name. Text search might be ambiguous.",
         );
       }
 
@@ -187,24 +187,49 @@ export class GeocodingService {
     const locality = components.find((c) => c.types.includes("locality"));
     if (locality) return locality.long_name;
 
-    // 2. Administrative Area Level 1 (Prefecture) - e.g. Tokyo (when special wards not grouped as locality)
-    // Note: For Tokyo 23 wards, locality is often missing, and Wards are sublocality_level_1.
-    // If we want "Tokyo", level_1 is good.
-    const admin1 = components.find((c) =>
-      c.types.includes("administrative_area_level_1")
-    );
-    const ward = components.find(
-      (c) => c.types.includes("ward") || c.types.includes("sublocality_level_1")
-    ); // Special ward
+    // 2. Postal Town (often used in UK/Japan for mailing city)
+    const postalTown = components.find((c) => c.types.includes("postal_town"));
+    if (postalTown) return postalTown.long_name;
 
-    // If it's a ward in Tokyo, user might prefer "Tokyo" or the Ward name "Shibuya".
+    // 3. Administrative Area Level 1 (Prefecture) - e.g. Tokyo
+    const admin1 = components.find((c) =>
+      c.types.includes("administrative_area_level_1"),
+    );
+
+    // 4. Sublocality Level 1 (Wards in Tokyo)
+    const ward = components.find(
+      (c) =>
+        c.types.includes("ward") || c.types.includes("sublocality_level_1"),
+    );
+
+    // If it's Tokyo, and we have a ward, maybe "Tokyo"? or "Shibuya, Tokyo"?
     // "Tokyo" is safer for grouping.
     if (admin1) {
-      // If it's Tokyo, and we have a ward, maybe "Tokyo"? or "Shibuya, Tokyo"?
-      // Simply returning admin1 (Prefecture) is a safe bet for "City" column generally.
       return admin1.long_name;
     }
 
+    // Capture Ward if we have nothing else (rare but possible)
+    if (ward) return ward.long_name;
+
+    return "Japan";
+  }
+
+  // Helper to parse string address
+  private static parseCityFromAddress(address: string): string {
+    if (!address) return "Japan";
+    // Naive parsing: "1-2-3, Shibuya City, Tokyo, Japan"
+    // Split by comma, reverse.
+    const parts = address.split(",").map((p) => p.trim());
+    // Remove "Japan" and zip codes
+    const cleaned = parts.filter(
+      (p) => p !== "Japan" && !p.match(/\d{3}-\d{4}/),
+    );
+
+    if (cleaned.length > 0) {
+      // Return the last part (often Prefecture or City)
+      // e.g. "Shibuya City", "Tokyo"
+      return cleaned[cleaned.length - 1];
+    }
     return "Japan";
   }
 
