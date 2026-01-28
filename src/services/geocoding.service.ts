@@ -69,6 +69,14 @@ export class GeocodingService {
         summary: d.editorial_summary?.overview || "",
       };
 
+      // Fallback: If city is still generic "Japan" after component extraction, try parsing address string
+      if (result.city === "Japan" && d.formatted_address) {
+        const parsed = this.parseCityFromAddress(d.formatted_address);
+        if (parsed && parsed !== "Japan") {
+          result.city = parsed;
+        }
+      }
+
       return result;
     } catch (e) {
       console.error("Place search error", e);
@@ -215,7 +223,7 @@ export class GeocodingService {
   }
 
   // Helper to parse string address
-  private static parseCityFromAddress(address: string): string {
+  public static parseCityFromAddress(address: string): string {
     if (!address) return "Japan";
     // Naive parsing: "1-2-3, Shibuya City, Tokyo, Japan"
     // Split by comma, reverse.
