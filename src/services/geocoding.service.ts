@@ -245,32 +245,47 @@ export class GeocodingService {
   // Helper to parse string address
   public static parseCityFromAddress(address: string): string {
     if (!address) return "Japan";
-    
+
     // Common patterns in Japanese Google addresses:
     // "〒542-0071 Osaka, Chuo Ward, Dotonbori, 1 Chome−7−21, Japan"
     // "1-7-1 Nishishinsaibashi, Chuo Ward, Osaka, 542-0086, Japan"
     // "Shibuya City, Tokyo, Japan"
-    
+
     const parts = address.split(",").map((p) => p.trim());
-    
+
     // Remove "Japan" and zip code patterns
     const cleaned = parts.filter(
-      (p) => 
-        p !== "Japan" && 
+      (p) =>
+        p !== "Japan" &&
         !p.match(/^〒?\d{3}-?\d{4}$/) && // Japanese zip codes
-        !p.match(/^\d{1,2}-\d/) // Street addresses like "1-7-21"
+        !p.match(/^\d{1,2}-\d/), // Street addresses like "1-7-21"
     );
-    
+
     if (cleaned.length === 0) return "Japan";
-    
+
     // Look for known prefectures/cities
     const knownCities = [
-      "Tokyo", "Osaka", "Kyoto", "Yokohama", "Nagoya", 
-      "Sapporo", "Fukuoka", "Kobe", "Sendai", "Hiroshima",
-      "Nara", "Kanazawa", "Hakone", "Nikko", "Kamakura",
-      "Uji", "Takayama", "Matsumoto", "Naha"
+      "Tokyo",
+      "Osaka",
+      "Kyoto",
+      "Yokohama",
+      "Nagoya",
+      "Sapporo",
+      "Fukuoka",
+      "Kobe",
+      "Sendai",
+      "Hiroshima",
+      "Nara",
+      "Kanazawa",
+      "Hakone",
+      "Nikko",
+      "Kamakura",
+      "Uji",
+      "Takayama",
+      "Matsumoto",
+      "Naha",
     ];
-    
+
     // Search through parts for a known city
     for (const part of cleaned) {
       for (const city of knownCities) {
@@ -279,29 +294,25 @@ export class GeocodingService {
         }
       }
     }
-    
+
     // If no known city found, try to pick the most likely candidate
     // Typically: [Street], [Ward], [City], [Prefecture]
     // We want the City or Prefecture (2nd to last or last)
-    
+
     // Remove ward-like patterns (contains "Ward" or ends with "区")
-    const withoutWards = cleaned.filter(p => 
-      !p.includes("Ward") && 
-      !p.includes("区") &&
-      !p.includes("City") // Remove "Shibuya City" format
+    const withoutWards = cleaned.filter(
+      (p) => !p.includes("Ward") && !p.includes("区") && !p.includes("City"), // Remove "Shibuya City" format
     );
-    
+
     if (withoutWards.length > 0) {
       // Return the last meaningful part
       const lastPart = withoutWards[withoutWards.length - 1];
       // Clean up "City" suffix if present
       return lastPart.replace(/\s+City$/, "").trim();
     }
-    
+
     // Absolute fallback: return the last part
     return cleaned[cleaned.length - 1].replace(/\s+City$/, "").trim();
-  }
-    return "Japan";
   }
 
   // Helpers
