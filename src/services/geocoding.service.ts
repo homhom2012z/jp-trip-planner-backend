@@ -19,6 +19,12 @@ export class GeocodingService {
     priceLevel?: string;
     type?: string;
     summary?: string;
+    openingHours?: {
+      weekdayText?: string[];
+      openNow?: boolean;
+    };
+    businessStatus?: string;
+    utcOffsetMinutes?: number;
   } | null> {
     if (!CONFIG.GOOGLE.MAPS_KEY) return null;
     try {
@@ -38,7 +44,7 @@ export class GeocodingService {
 
       // 2. Place Details to get rich info
       // Added 'address_components' to fields
-      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,geometry,photos,url,website,price_level,types,editorial_summary,address_components&key=${CONFIG.GOOGLE.MAPS_KEY}`;
+      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,geometry,photos,url,website,price_level,types,editorial_summary,address_components,opening_hours,business_status,utc_offset_minutes&key=${CONFIG.GOOGLE.MAPS_KEY}`;
 
       const detailsRes = await axios.get(detailsUrl);
       if (detailsRes.data.status !== "OK") {
@@ -67,6 +73,14 @@ export class GeocodingService {
         priceLevel: this.mapPrice(d.price_level),
         type: this.mapType(d.types),
         summary: d.editorial_summary?.overview || "",
+        openingHours: d.opening_hours
+          ? {
+              weekdayText: d.opening_hours.weekday_text,
+              openNow: d.opening_hours.open_now,
+            }
+          : undefined,
+        businessStatus: d.business_status,
+        utcOffsetMinutes: d.utc_offset_minutes,
       };
 
       // Fallback: If city is still generic "Japan" after component extraction, try parsing address string
@@ -98,6 +112,12 @@ export class GeocodingService {
     priceLevel?: string;
     type?: string;
     summary?: string;
+    openingHours?: {
+      weekdayText?: string[];
+      openNow?: boolean;
+    };
+    businessStatus?: string;
+    utcOffsetMinutes?: number;
   } | null> {
     try {
       // 1. Sanitize/Extract URL

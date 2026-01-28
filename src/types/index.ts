@@ -11,6 +11,12 @@ export interface Location {
   distanceFromMetro?: string;
   description?: string;
   photoUrl?: string; // Cache the photo URL if possible
+  openingHours?: {
+    weekdayText?: string[];
+    openNow?: boolean;
+  };
+  businessStatus?: string;
+  utcOffsetMinutes?: number;
 }
 
 export interface UserProfile {
